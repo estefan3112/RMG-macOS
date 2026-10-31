@@ -10,6 +10,10 @@ if(WIN32)
     set(SO_EXT "dll")
     set(GCA_LIB "mupen64plus_input_gca.${SO_EXT}")
     set(CORE_FILE "mupen64plus.dll")
+elseif(APPLE)
+    set(SO_EXT "dylib")
+    set(GCA_LIB "libmupen64plus_input_gca.${SO_EXT}")
+    set(CORE_FILE "libmupen64plus.dylib")
 else(WIN32)
     set(SO_EXT "so")
     set(GCA_LIB "libmupen64plus_input_gca.${SO_EXT}")
@@ -53,12 +57,14 @@ else()
 endif()
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL3_net REQUIRED sdl3-net)
-set(SDL3NET_LDLIBS ${SDL3_net_LDFLAGS})
-set(SDL3NET_CFLAGS "-DUSE_SDL3NET ${SDL3_net_CFLAGS}")
-# list -> string
-string (REPLACE ";" " " SDL3NET_LDLIBS "${SDL3NET_LDLIBS}")
-string (REPLACE ";" " " SDL3NET_CFLAGS "${SDL3NET_CFLAGS}")
+if (NETPLAY)
+    pkg_check_modules(SDL3_net REQUIRED sdl3-net)
+    set(SDL3NET_LDLIBS ${SDL3_net_LDFLAGS})
+    set(SDL3NET_CFLAGS "-DUSE_SDL3NET ${SDL3_net_CFLAGS}")
+    # list -> string
+    string (REPLACE ";" " " SDL3NET_LDLIBS "${SDL3NET_LDLIBS}")
+    string (REPLACE ";" " " SDL3NET_CFLAGS "${SDL3NET_CFLAGS}")
+endif(NETPLAY)
 
 ExternalProject_Add(mupen64plus-core
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-core/
@@ -120,6 +126,9 @@ ExternalProject_Add(mupen64plus-rsp-hle
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-rsp-hle/mupen64plus-rsp-hle.${SO_EXT}
 )
 
+# not yet ported to macOS: paraLLEl-RSP (lightning JIT needs MAP_JIT)
+# and raphnetraw (hidapi)
+if (NOT APPLE)
 ExternalProject_Add(mupen64plus-rsp-parallel
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-rsp-parallel/
 
@@ -150,6 +159,7 @@ ExternalProject_Add(mupen64plus-input-raphnetraw
 
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-input-raphnetraw/mupen64plus-input-raphnetraw.${SO_EXT}
 )
+endif(NOT APPLE)
 
 set(GLIDEN64_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-video-GLideN64")
 set(GLIDEN64_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-video-GLideN64")
@@ -193,6 +203,8 @@ ExternalProject_Add(mupen64plus-video-GLideN64
     BUILD_BYPRODUCTS ${GLIDEN64_BUILD_DIR}/plugin/${GLIDEN64_BUILD_TYPE}/mupen64plus-video-GLideN64.${SO_EXT}
 )
 
+# not yet ported to macOS: paraLLEl-RDP (needs MoltenVK) and softrdp
+if (NOT APPLE)
 ExternalProject_Add(mupen64plus-video-parallel
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-video-parallel
 
@@ -224,6 +236,7 @@ ExternalProject_Add(mupen64plus-video-softrdp
 
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-video-softrdp/mupen64plus-video-softrdp.${SO_EXT}
 )
+endif(NOT APPLE)
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 set(IMGUI_SOURCES
@@ -266,11 +279,13 @@ set(MUPEN64PLUS_PLUGIN_RSP_CXD4 ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 ExternalProject_Get_property(mupen64plus-rsp-hle BUILD_BYPRODUCTS)
 set(MUPEN64PLUS_PLUGIN_RSP_HLE ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
-ExternalProject_Get_property(mupen64plus-rsp-parallel BUILD_BYPRODUCTS)
-set(MUPEN64PLUS_PLUGIN_RSP_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+if (NOT APPLE)
+    ExternalProject_Get_property(mupen64plus-rsp-parallel BUILD_BYPRODUCTS)
+    set(MUPEN64PLUS_PLUGIN_RSP_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
-ExternalProject_Get_property(mupen64plus-input-raphnetraw BUILD_BYPRODUCTS)
-set(MUPEN64PLUS_PLUGIN_INPUT_RAPHNET ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+    ExternalProject_Get_property(mupen64plus-input-raphnetraw BUILD_BYPRODUCTS)
+    set(MUPEN64PLUS_PLUGIN_INPUT_RAPHNET ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+endif(NOT APPLE)
 
 if (USE_ANGRYLION)
     ExternalProject_Get_property(mupen64plus-video-angrylion-plus BUILD_BYPRODUCTS)
@@ -281,11 +296,13 @@ ExternalProject_Get_property(mupen64plus-video-GLideN64 BUILD_BYPRODUCTS)
 set(MUPEN64PLUS_PLUGIN_GFX_GLIDEN64 ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 set(MUPEN64PLUS_PLUGIN_GFX_GLIDEN64_DATA ${GLIDEN64_CUSTOM_INI} PARENT_SCOPE)
 
-ExternalProject_Get_property(mupen64plus-video-parallel BUILD_BYPRODUCTS)
-set(MUPEN64PLUS_PLUGIN_GFX_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+if (NOT APPLE)
+    ExternalProject_Get_property(mupen64plus-video-parallel BUILD_BYPRODUCTS)
+    set(MUPEN64PLUS_PLUGIN_GFX_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
-ExternalProject_Get_property(mupen64plus-video-softrdp BUILD_BYPRODUCTS)
-set(MUPEN64PLUS_PLUGIN_GFX_SOFTRDP ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+    ExternalProject_Get_property(mupen64plus-video-softrdp BUILD_BYPRODUCTS)
+    set(MUPEN64PLUS_PLUGIN_GFX_SOFTRDP ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+endif(NOT APPLE)
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui PARENT_SCOPE)
 

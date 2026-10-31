@@ -7,9 +7,9 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 COMPONENTS Gui Widgets Core REQUIRED)
 
-if (NOT WIN32)
+if (NOT WIN32 AND NOT APPLE)
     find_package(Qt6 REQUIRED COMPONENTS DBus)
-endif(NOT WIN32)
+endif(NOT WIN32 AND NOT APPLE)
 
 if (PORTABLE_INSTALL)
     add_definitions(-DPORTABLE_INSTALL)
@@ -127,9 +127,15 @@ target_link_libraries(RMG
 
 # needed for dynamically linked RMG-Core
 if (PORTABLE_INSTALL)
-    set_target_properties(RMG PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
-    )
+    if (APPLE)
+        set_target_properties(RMG PROPERTIES
+            INSTALL_RPATH "@executable_path"
+        )
+    else(APPLE)
+        set_target_properties(RMG PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+        )
+    endif(APPLE)
 endif(PORTABLE_INSTALL)
 
 target_include_directories(RMG PRIVATE 
@@ -141,9 +147,12 @@ target_include_directories(RMG PRIVATE
 
 target_link_libraries(RMG Qt6::Gui Qt6::Widgets)
 
-if (NOT WIN32)
+if (APPLE)
+    # IOKit is used to prevent display sleep during emulation
+    target_link_libraries(RMG "-framework IOKit" "-framework CoreFoundation" "-framework OpenGL")
+elseif (NOT WIN32)
     target_link_libraries(RMG Qt6::DBus)
-endif(NOT WIN32)
+endif()
 
 if (UPDATER)
     target_link_libraries(RMG Qt6::Network)

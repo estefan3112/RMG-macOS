@@ -16,6 +16,9 @@
 #include <QTimerEvent>
 #include <QOpenGLContext>
 #include <QWidget>
+#ifdef __APPLE__
+#include <atomic>
+#endif // __APPLE__
 
 namespace UserInterface
 {
@@ -30,6 +33,11 @@ class OGLWidget : public QWindow
     void MoveContextToThread(QThread* thread);
     QOpenGLContext* GetContext();
 
+    // makes the context current on this window and swaps
+    // its buffers, from the thread that owns the context
+    bool MakeCurrent(void);
+    void SwapBuffers(void);
+
     void SetHideCursor(bool hide);
 
     QWidget* GetWidget(void);
@@ -39,6 +47,11 @@ class OGLWidget : public QWindow
     void timerEvent(QTimerEvent *) Q_DECL_OVERRIDE;
 
   private:
+#ifdef __APPLE__
+    void updateNativeContext(void);
+    std::atomic<bool> nativeContextNeedsUpdate{false};
+#endif // __APPLE__
+
     QWidget* widgetContainer      = nullptr;
     QOpenGLContext* openGLcontext = nullptr;
     int width                     = 0;

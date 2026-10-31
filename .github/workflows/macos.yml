@@ -1,0 +1,118 @@
+name: RMG macOS
+
+on:
+  push:
+    branches: [ macos ]
+    tags: [ 'macos-v*' ] # own tag prefix, so upstream's v* tags never trigger a release
+  pull_request:
+    branches: [ macos ]
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to create releases for tags
+
+jobs:
+  build-macos:
+    runs-on: macos-15 # Apple Silicon (arm64)
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      # signing and notarization are skipped when these secrets aren't set,
+      # the build is then ad-hoc signed (fine for testing on your own Mac)
+      HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' }}
+      HAS_NOTARIZATION: ${{ secrets.APPLE_ID != '' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg
+
+          # make Qt visible to RMG and to the plugins built as external projects (GLideN64's UI)
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qt)" >> "$GITHUB_ENV"
+          echo "MACDEPLOYQT=$(brew --prefix qt)/bin/macdeployqt" >> "$GITHUB_ENV"
+          echo "MACOSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion | cut -d. -f1).0" >> "$GITHUB_ENV"
+          echo "RMG_VERSION=$(git describe --tags --always)" >> "$GITHUB_ENV"
+
+      - name: Build RMG
+        run: |
+          cmake -S . -B Build/Release -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DPORTABLE_INSTALL=ON \
+                -DUSE_CCACHE=OFF
+          cmake --build Build/Release --parallel "$(sysctl -n hw.ncpu)"
+          cmake --install Build/Release --strip --prefix "$PWD"
+
+          echo "--- portable install:"
+          find Bin/Release -type f | sort
+
+      - name: Import signing certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          keychain_pwd="$(openssl rand -base64 24)"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$keychain_pwd" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_pwd" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+                   -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_pwd" "$keychain"
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$identity" ]
+          then
+              echo "error: no 'Developer ID Application' identity found in the certificate"
+              exit 1
+          fi
+          echo "CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Create app bundle
+        run: CREATE_DMG=1 bash ./Package/macOS/Create.sh Bin/Release Build/macOS
+
+      - name: Smoke test
+        continue-on-error: true
+        run: |
+          # starts RMG once, which proves that every linked library
+          # resolves inside the bundle (perl's alarm acts as a timeout)
+          perl -e 'alarm 30; exec @ARGV' Build/macOS/RMG.app/Contents/MacOS/RMG --version
+
+      - name: Notarize
+        if: env.HAS_SIGNING == 'true' && env.HAS_NOTARIZATION == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          dmg="$(ls Build/macOS/*.dmg)"
+          xcrun notarytool submit "$dmg" \
+                --apple-id "$APPLE_ID" \
+                --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_PASSWORD" \
+                --wait
+          xcrun stapler staple "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose "$dmg"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RMG-macOS-arm64-${{ env.RMG_VERSION }}
+          path: Build/macOS/*.dmg
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" Build/macOS/*.dmg \
+             --repo "$GITHUB_REPOSITORY" \
+             --title "RMG $GITHUB_REF_NAME for macOS (Apple Silicon)" \
+             --notes "Unofficial macOS build of Rosalie's Mupen GUI with the mupen64plus-core dynarec. Plugins: GLideN64, RSP HLE, RSP CXD4, RMG-Audio, RMG-Input, RMG-Input-GCA."

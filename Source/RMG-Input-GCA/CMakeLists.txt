@@ -30,9 +30,19 @@ target_include_directories(RMG-Input-GCA PRIVATE
     ${LIBUSB1_INCLUDE_DIRS}
 )
 
-target_link_libraries(RMG-Input-GCA 
-    RMG-Core 
-    ${LIBUSB1_LIBRARIES} 
-    Qt6::Gui Qt6::Widgets Qt6::Svg 
-    atomic # needed by GCC due to std::atomic usage
-)
+if (APPLE)
+    # Homebrew libraries aren't in the default linker search path,
+    # and clang on macOS doesn't need (or ship) libatomic
+    target_link_libraries(RMG-Input-GCA 
+        RMG-Core 
+        ${LIBUSB1_LINK_LIBRARIES} 
+        Qt6::Gui Qt6::Widgets Qt6::Svg 
+    )
+else(APPLE)
+    target_link_libraries(RMG-Input-GCA 
+        RMG-Core 
+        ${LIBUSB1_LIBRARIES} 
+        Qt6::Gui Qt6::Widgets Qt6::Svg 
+        atomic # needed by GCC due to std::atomic usage
+    )
+endif(APPLE)

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- mupen64plus-core's new_dynarec allocates its code cache with MAP_JIT
+         and toggles it with pthread_jit_write_protect_np(); under the
+         hardened runtime (required for notarization) that needs allow-jit -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+</dict>
+</plist>

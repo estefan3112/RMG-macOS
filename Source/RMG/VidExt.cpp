@@ -66,7 +66,7 @@ static bool VidExt_OglSetup(void)
         return false;
     }
 
-    if (!(*l_OGLWidget)->GetContext()->makeCurrent((*l_OGLWidget)))
+    if (!(*l_OGLWidget)->MakeCurrent())
     {
         CoreAddCallbackMessage(CoreDebugMessageType::Error, "Failed to make OpenGL context current");
         return false;
@@ -86,7 +86,12 @@ static m64p_error VidExt_InitWithRenderMode(m64p_render_mode RenderMode)
         l_SurfaceFormat = QSurfaceFormat::defaultFormat();
         l_SurfaceFormat.setOption(QSurfaceFormat::DeprecatedFunctions, 1);
         l_SurfaceFormat.setDepthBufferSize(24);
+#ifdef __APPLE__
+        // macOS only offers OpenGL 3.2+ as core profile
+        l_SurfaceFormat.setProfile(QSurfaceFormat::CoreProfile);
+#else
         l_SurfaceFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
+#endif // __APPLE__
         l_SurfaceFormat.setSwapInterval(0);
         if (l_SurfaceFormat.renderableType() != QSurfaceFormat::OpenGLES)
         {
@@ -353,8 +358,7 @@ static m64p_error VidExt_GLSwapBuf(void)
 
     OnScreenDisplayRender();
 
-    (*l_OGLWidget)->GetContext()->swapBuffers((*l_OGLWidget));
-    (*l_OGLWidget)->GetContext()->makeCurrent((*l_OGLWidget));
+    (*l_OGLWidget)->SwapBuffers();
 
     return M64ERR_SUCCESS;
 }

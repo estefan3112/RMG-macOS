@@ -4,7 +4,12 @@ script_dir="$(dirname "$0")"
 toplvl_dir="$(realpath "$script_dir/../../")"
 build_config="${1:-Debug}"
 build_dir="$toplvl_dir/Build/$build_config"
-threads="${2:-$(nproc)}"
+if [[ $(uname -s) = "Darwin" ]]
+then
+    threads="${2:-$(sysctl -n hw.ncpu)}"
+else
+    threads="${2:-$(nproc)}"
+fi
 generator="Unix Makefiles"
 
 if [[ "$1" = "--help" ]] ||

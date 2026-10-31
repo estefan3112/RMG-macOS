@@ -25,6 +25,10 @@
 #include <Windows.h>
 #include <shlobj.h>
 #endif // _WIN32
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <climits>
+#endif // __APPLE__
 
 //
 // Local Variables
@@ -61,6 +65,18 @@ static std::filesystem::path get_exe_directory(void)
         throw std::runtime_error("get_exe_directory: GetModuleFileNameW() failed");
     }
     directory = std::filesystem::path(buffer).parent_path();
+#elif defined(__APPLE__)
+    char buffer[PATH_MAX] = {0};
+    uint32_t bufferSize = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &bufferSize) != 0)
+    {
+        throw std::runtime_error("get_exe_directory: _NSGetExecutablePath() failed");
+    }
+    directory = std::filesystem::canonical(buffer, errorCode).parent_path();
+    if (errorCode)
+    {
+        throw std::runtime_error("get_exe_directory: std::filesystem::canonical() failed: " + errorCode.message());
+    }
 #else // _WIN32
     directory =  std::filesystem::canonical("/proc/self/exe", errorCode).parent_path();
     if (errorCode)
@@ -70,6 +86,22 @@ static std::filesystem::path get_exe_directory(void)
 #endif // _WIN32
     return directory.make_preferred();
 }
+
+#ifdef __APPLE__
+// returns RMG.app/Contents/Resources when RMG is running
+// from an app bundle, else an empty path
+static std::filesystem::path get_bundle_resources_directory(void)
+{
+    std::filesystem::path exeDirectory = get_exe_directory();
+    if (exeDirectory.filename() != "MacOS" ||
+        exeDirectory.parent_path().filename() != "Contents")
+    {
+        return {};
+    }
+
+    return exeDirectory.parent_path() / "Resources";
+}
+#endif // __APPLE__
 #endif // PORTABLE_INSTALL
 
 #ifdef _WIN32
@@ -289,6 +321,8 @@ CORE_EXPORT std::filesystem::path CoreGetUserConfigDirectory(void)
 #ifdef _WIN32
         directory = get_appdata_directory("Config");
 
+#elif defined(__APPLE__)
+        directory = get_var_directory("HOME", "/Library/Application Support/RMG/Config", "HOME", "/Library/Application Support/RMG/Config");
 #else
         directory = get_var_directory("XDG_CONFIG_HOME", "/RMG", "HOME", "/.config/RMG");
 #endif // _WIN32
@@ -375,6 +409,8 @@ CORE_EXPORT std::filesystem::path CoreGetUserDataDirectory(void)
     {
 #ifdef _WIN32
         directory = get_appdata_directory("Data");
+#elif defined(__APPLE__)
+        directory = get_var_directory("HOME", "/Library/Application Support/RMG/Data", "HOME", "/Library/Application Support/RMG/Data");
 #else
         directory = get_var_directory("XDG_DATA_HOME", "/RMG", "HOME", "/.local/share/RMG");
 #endif // _WIN32
@@ -396,6 +432,8 @@ CORE_EXPORT std::filesystem::path CoreGetUserCacheDirectory(void)
 #ifdef _WIN32
         directory = get_appdata_directory("Cache");
 
+#elif defined(__APPLE__)
+        directory = get_var_directory("HOME", "/Library/Caches/RMG", "HOME", "/Library/Caches/RMG");
 #else
         directory = get_var_directory("XDG_CACHE_HOME", "/RMG", "HOME", "/.cache/RMG");
 #endif // _WIN32
@@ -413,7 +451,19 @@ CORE_EXPORT std::filesystem::path CoreGetSharedDataDirectory(void)
     }
     else
     {
-        directory = get_exe_directory();
+#ifdef __APPLE__
+        // inside an app bundle the shared data
+        // lives in RMG.app/Contents/Resources/Data
+        std::filesystem::path resourcesDirectory = get_bundle_resources_directory();
+        if (!resourcesDirectory.empty())
+        {
+            directory = resourcesDirectory;
+        }
+        else
+#endif // __APPLE__
+        {
+            directory = get_exe_directory();
+        }
         directory += "/Data";
     }
 #else // Linux install

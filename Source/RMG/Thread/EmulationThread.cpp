@@ -14,6 +14,8 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#elif defined(__APPLE__)
+#include <CoreFoundation/CoreFoundation.h>
 #else // Linux
 #include <QDBusConnection>
 #include <QDBusReply>
@@ -82,6 +84,16 @@ void EmulationThread::inhibitScreensaver(void)
 {
 #ifdef _WIN32
     SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
+#elif defined(__APPLE__)
+    if (this->powerAssertionId != kIOPMNullAssertionID)
+    {
+        return;
+    }
+
+    IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleDisplaySleep,
+                                kIOPMAssertionLevelOn,
+                                CFSTR("RMG is running a game"),
+                                &this->powerAssertionId);
 #else
     this->dbusCookieId = 0;
     this->dbusInterface = new QDBusInterface("org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver", "org.freedesktop.ScreenSaver", QDBusConnection::sessionBus());
@@ -102,6 +114,12 @@ void EmulationThread::uninhibitScreensaver(void)
 {
 #ifdef _WIN32
     SetThreadExecutionState(ES_CONTINUOUS);
+#elif defined(__APPLE__)
+    if (this->powerAssertionId != kIOPMNullAssertionID)
+    {
+        IOPMAssertionRelease(this->powerAssertionId);
+        this->powerAssertionId = kIOPMNullAssertionID;
+    }
 #else
     if (this->dbusInterface == nullptr)
     {

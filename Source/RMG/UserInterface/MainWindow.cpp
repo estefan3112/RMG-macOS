@@ -2420,6 +2420,11 @@ void MainWindow::on_VidExt_Init(VidExtRenderMode renderMode)
 
 void MainWindow::on_VidExt_SetupOGL(QSurfaceFormat format, QThread* thread)
 {
+#ifdef __APPLE__
+    // the window format has to be set before MoveContextToThread()
+    // creates the native window on macOS, it's ignored afterwards
+    this->ui_Widget_OpenGL->setFormat(format);
+#endif // __APPLE__
     this->ui_Widget_OpenGL->MoveContextToThread(thread);
     // on wayland setting the surface format
     // fails for some reason, and if we set it anyways

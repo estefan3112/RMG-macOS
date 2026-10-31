@@ -141,6 +141,21 @@ int main(int argc, char **argv)
     signal(SIGINT,  signal_handler);
     signal(SIGTERM, signal_handler);
 
+#ifdef __APPLE__
+    // on macOS, an OpenGL context can only be shared
+    // with contexts of the same profile, and anything
+    // newer than OpenGL 2.1 requires a core profile,
+    // so ensure every context (including the one Qt
+    // uses to composite the OpenGL widget) is a core
+    // profile context, and that vsync is disabled
+    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+    format.setSwapInterval(0);
+    format.setMajorVersion(4);
+    format.setMinorVersion(1);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setRenderableType(QSurfaceFormat::OpenGL);
+    QSurfaceFormat::setDefaultFormat(format);
+#else // Linux
     // on Linux, wayland works only on some compositors,
     // it works on KDE plasma and sway (on 2023-07-26),
     // but i.e doesn't work on GNOME wayland or labwc, 
@@ -177,7 +192,8 @@ int main(int argc, char **argv)
     // specified, else the window icon will be
     // the generic wayland icon on wayland
     QGuiApplication::setDesktopFileName("com.github.Rosalie241.RMG");
-#endif
+#endif // __APPLE__
+#endif // _WIN32
 
     QApplication app(argc, argv);
 

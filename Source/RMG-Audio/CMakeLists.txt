@@ -29,11 +29,17 @@ add_library(RMG-Audio SHARED ${RMG_AUDIO_SOURCES})
 
 set_target_properties(RMG-Audio PROPERTIES PREFIX "")
 
+if (APPLE)
+    # Homebrew libraries aren't in the default linker search path
+    set(RMG_AUDIO_PKG_LIBS ${SPEEX_LINK_LIBRARIES} ${SAMPLERATE_LINK_LIBRARIES})
+else(APPLE)
+    set(RMG_AUDIO_PKG_LIBS ${SPEEX_LIBRARIES} ${SAMPLERATE_LIBRARIES})
+endif(APPLE)
+
 target_link_libraries(RMG-Audio
     RMG-Core
     SDL3::SDL3
-    ${SPEEX_LIBRARIES}
-    ${SAMPLERATE_LIBRARIES}
+    ${RMG_AUDIO_PKG_LIBS}
     Qt6::Gui Qt6::Widgets
 )
 

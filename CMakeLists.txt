@@ -7,8 +7,17 @@ option(PORTABLE_INSTALL "Portable Installation" ON)
 option(UPDATER          "Enables updater" ${WIN32})
 option(APPIMAGE_UPDATER "Enables AppImage updater" OFF)
 option(KCA_DRAG_DROP    "Enables drag and drop using KCoreAddons" OFF) # https://bugreports.qt.io/browse/QTBUG-91357
-option(NETPLAY          "Enables netplay" ON)
-option(VRU              "Enables VRU support in RMG-Input" ON)
+# netplay (SDL3_net) and VRU (prebuilt vosk-api, Linux/Windows only)
+# aren't available on macOS yet, so they default to OFF there
+if (APPLE)
+    set(RMG_DEFAULT_NETPLAY OFF)
+    set(RMG_DEFAULT_VRU     OFF)
+else()
+    set(RMG_DEFAULT_NETPLAY ON)
+    set(RMG_DEFAULT_VRU     ON)
+endif()
+option(NETPLAY          "Enables netplay" ${RMG_DEFAULT_NETPLAY})
+option(VRU              "Enables VRU support in RMG-Input" ${RMG_DEFAULT_VRU})
 option(USE_CCACHE       "Enables usage of ccache when ccache has been found" ON)
 option(NO_ASM           "Disables the usage of assembly in the mupen64plus-core" OFF)
 option(USE_ANGRYLION    "Enables building angrylion-rdp-plus which uses a non-GPL compliant license" OFF)
@@ -93,6 +102,10 @@ endif()
 
 add_subdirectory(Source/3rdParty)
 add_subdirectory(Source/3rdParty/lzma)
+if (VRU AND APPLE)
+    message(WARNING "VRU (vosk-api) is not supported on macOS, disabling VRU!")
+    set(VRU OFF)
+endif()
 if (VRU)
     add_subdirectory(Source/3rdParty/vosk-api)
 endif(VRU)
@@ -159,14 +172,16 @@ install(FILES ${MUPEN64PLUS_PLUGIN_RSP_HLE}
     DESTINATION ${PLUGIN_INSTALL_PATH}/RSP
     PERMISSIONS ${LIB_PERMISSIONS}
 )
-install(FILES ${MUPEN64PLUS_PLUGIN_RSP_PARALLEL}
-    DESTINATION ${PLUGIN_INSTALL_PATH}/RSP
-    PERMISSIONS ${LIB_PERMISSIONS}
-)
-install(FILES ${MUPEN64PLUS_PLUGIN_INPUT_RAPHNET}
-    DESTINATION ${PLUGIN_INSTALL_PATH}/Input
-    PERMISSIONS ${LIB_PERMISSIONS}
-)
+if (NOT APPLE) # not yet ported to macOS
+    install(FILES ${MUPEN64PLUS_PLUGIN_RSP_PARALLEL}
+        DESTINATION ${PLUGIN_INSTALL_PATH}/RSP
+        PERMISSIONS ${LIB_PERMISSIONS}
+    )
+    install(FILES ${MUPEN64PLUS_PLUGIN_INPUT_RAPHNET}
+        DESTINATION ${PLUGIN_INSTALL_PATH}/Input
+        PERMISSIONS ${LIB_PERMISSIONS}
+    )
+endif(NOT APPLE)
 if (USE_ANGRYLION)
     install(FILES ${MUPEN64PLUS_PLUGIN_GFX_ANGRYLION}
         DESTINATION ${PLUGIN_INSTALL_PATH}/GFX
@@ -180,14 +195,16 @@ install(FILES ${MUPEN64PLUS_PLUGIN_GFX_GLIDEN64}
 install(FILES ${MUPEN64PLUS_PLUGIN_GFX_GLIDEN64_DATA}
     DESTINATION ${DATA_INSTALL_PATH}
 )
-install(FILES ${MUPEN64PLUS_PLUGIN_GFX_PARALLEL}
-    DESTINATION ${PLUGIN_INSTALL_PATH}/GFX
-    PERMISSIONS ${LIB_PERMISSIONS}
-)
-install(FILES ${MUPEN64PLUS_PLUGIN_GFX_SOFTRDP}
-    DESTINATION ${PLUGIN_INSTALL_PATH}/GFX
-    PERMISSIONS ${LIB_PERMISSIONS}
-)
+if (NOT APPLE) # not yet ported to macOS
+    install(FILES ${MUPEN64PLUS_PLUGIN_GFX_PARALLEL}
+        DESTINATION ${PLUGIN_INSTALL_PATH}/GFX
+        PERMISSIONS ${LIB_PERMISSIONS}
+    )
+    install(FILES ${MUPEN64PLUS_PLUGIN_GFX_SOFTRDP}
+        DESTINATION ${PLUGIN_INSTALL_PATH}/GFX
+        PERMISSIONS ${LIB_PERMISSIONS}
+    )
+endif(NOT APPLE)
 
 if (INSTALL_DESKTOP_FILE)
     install(FILES Package/com.github.Rosalie241.RMG.desktop

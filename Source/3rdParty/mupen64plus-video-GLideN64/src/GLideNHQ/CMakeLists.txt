@@ -98,10 +98,19 @@ if( GLIDEN64_BUILD_TYPE STREQUAL "Debug")
     FIND_PACKAGE( ZLIB REQUIRED )
     FIND_PACKAGE( PNG REQUIRED )
     FIND_PACKAGE( zstd REQUIRED )
+    # on macOS zstd comes from Homebrew, which isn't in the default
+    # linker search path, so use the imported target (full path)
+    if(APPLE AND TARGET zstd::libzstd_shared)
+      set(GLIDENHQ_ZSTD_LIB zstd::libzstd_shared)
+    elseif(APPLE AND TARGET zstd::libzstd_static)
+      set(GLIDENHQ_ZSTD_LIB zstd::libzstd_static)
+    else()
+      set(GLIDENHQ_ZSTD_LIB zstd)
+    endif()
     target_link_libraries(GLideNHQd
       ${PNG_LIBRARIES}
       ${ZLIB_LIBRARIES}
-      zstd
+      ${GLIDENHQ_ZSTD_LIB}
       osald
     )
   elseif(ANDROID)
@@ -140,10 +149,19 @@ else( GLIDEN64_BUILD_TYPE STREQUAL "Debug")
     FIND_PACKAGE( ZLIB REQUIRED )
     FIND_PACKAGE( PNG REQUIRED )
     FIND_PACKAGE( zstd REQUIRED )
+    # on macOS zstd comes from Homebrew, which isn't in the default
+    # linker search path, so use the imported target (full path)
+    if(APPLE AND TARGET zstd::libzstd_shared)
+      set(GLIDENHQ_ZSTD_LIB zstd::libzstd_shared)
+    elseif(APPLE AND TARGET zstd::libzstd_static)
+      set(GLIDENHQ_ZSTD_LIB zstd::libzstd_static)
+    else()
+      set(GLIDENHQ_ZSTD_LIB zstd)
+    endif()
     target_link_libraries(GLideNHQ
       ${PNG_LIBRARIES}
       ${ZLIB_LIBRARIES}
-      zstd
+      ${GLIDENHQ_ZSTD_LIB}
       osal
     )
   elseif(ANDROID)

@@ -70,8 +70,16 @@ if(WIN32)
     target_link_libraries(RMG-Core wsock32 ws2_32 ${ICONV_LIBRARIES})
 endif(WIN32)
 
+if(APPLE)
+    # iconv isn't part of libc on macOS, and Homebrew
+    # libraries aren't in the default linker search path,
+    # so link them using their full paths
+    target_link_libraries(RMG-Core iconv ${MINIZIP_LINK_LIBRARIES})
+else(APPLE)
+    target_link_libraries(RMG-Core ${MINIZIP_LIBRARIES})
+endif(APPLE)
+
 target_link_libraries(RMG-Core
-    ${MINIZIP_LIBRARIES}
     lzma
 )
 
