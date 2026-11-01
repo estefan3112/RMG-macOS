@@ -147,6 +147,11 @@ target_include_directories(RMG PRIVATE
 
 target_link_libraries(RMG Qt6::Gui Qt6::Widgets)
 
+# Utilities/QtKeyToSdl3Key.cpp includes <SDL3/SDL.h>, so RMG needs
+# SDL3's include directory (header only, RMG doesn't link SDL3),
+# this matters when SDL3 isn't in a default include path (i.e Homebrew)
+target_link_libraries(RMG SDL3::Headers)
+
 if (APPLE)
     # IOKit is used to prevent display sleep during emulation
     target_link_libraries(RMG "-framework IOKit" "-framework CoreFoundation" "-framework OpenGL")
