@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg molten-vk
+          brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg molten-vk vulkan-headers
 
           # make Qt visible to RMG and to the plugins built as external projects (GLideN64's UI)
           echo "CMAKE_PREFIX_PATH=$(brew --prefix qt)" >> "$GITHUB_ENV"

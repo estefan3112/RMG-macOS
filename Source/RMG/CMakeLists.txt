@@ -152,6 +152,18 @@ target_link_libraries(RMG Qt6::Gui Qt6::Widgets)
 # this matters when SDL3 isn't in a default include path (i.e Homebrew)
 target_link_libraries(RMG SDL3::Headers)
 
+# Qt only declares QVulkanInstance (VidExt.cpp) when <vulkan/vulkan.h>
+# is available while compiling RMG, so add its directory when it isn't
+# in a default include path (i.e Homebrew's vulkan-headers on macOS)
+find_path(VULKAN_HEADERS_INCLUDE_DIR vulkan/vulkan.h
+    PATHS /opt/homebrew/include /usr/local/include
+)
+if (VULKAN_HEADERS_INCLUDE_DIR)
+    target_include_directories(RMG PRIVATE ${VULKAN_HEADERS_INCLUDE_DIR})
+elseif (APPLE)
+    message(FATAL_ERROR "vulkan/vulkan.h not found, install it with: brew install vulkan-headers")
+endif()
+
 if (APPLE)
     # IOKit is used to prevent display sleep during emulation
     target_link_libraries(RMG "-framework IOKit" "-framework CoreFoundation" "-framework OpenGL")

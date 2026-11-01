@@ -26,7 +26,7 @@ Tested on a Mac mini M2 Pro with macOS 26 with a longer list of games, including
 Requirements: Xcode Command Line Tools and [Homebrew](https://brew.sh).
 
 ```bash
-brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg
+brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg molten-vk vulkan-headers
 export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
 
 cmake -S . -B Build/Release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPORTABLE_INSTALL=ON -DUSE_CCACHE=OFF
