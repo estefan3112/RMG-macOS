@@ -858,8 +858,15 @@ void Device::init_workarounds()
 	// MoltenVK is broken with push descriptor templates.
 	// KhronosGroup/MoltenVK issue 2323.
 	workarounds.broken_push_descriptors = true;
+	// MoltenVK reports pipelineCreationCacheControl, but compiles synchronously
+	// even with VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT, which
+	// stalls the frame ("Stalled compile ... mode: fail-on-compile-required,
+	// success: yes"). Treat it as unsupported, so paraLLEl-RDP falls back to
+	// the generic shader and compiles the specialized one asynchronously.
+	workarounds.broken_pipeline_cache_control = true;
 	LOGW("Emulating events as pipeline barriers on Metal emulation.\n");
 	LOGW("Disabling push descriptors on Metal emulation.\n");
+	LOGW("Disabling pipeline cache control on Metal emulation.\n");
 #else
 	bool sync2_workarounds = false;
 	const bool mesa_driver = ext.driver_id == VK_DRIVER_ID_MESA_RADV ||
