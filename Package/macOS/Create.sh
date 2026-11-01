@@ -147,6 +147,23 @@ done < <(find "$contents/Frameworks" -maxdepth 1 -type f -name "*.dylib" -print0
 # that still uses @rpath (i.e the Qt frameworks)
 install_name_tool -add_rpath "@executable_path/../Frameworks" "$contents/MacOS/RMG" 2> /dev/null || true
 
+# 5. MoltenVK (Vulkan on Metal) for paraLLEl-RDP, RMG loads it from
+#    Contents/Frameworks at runtime, so nothing links against it and
+#    macdeployqt doesn't deploy it by itself
+moltenvk="${MOLTENVK_LIB:-}"
+if [ -z "$moltenvk" ] && command -v brew > /dev/null
+then
+    moltenvk="$(brew --prefix molten-vk 2> /dev/null)/lib/libMoltenVK.dylib"
+fi
+if [ -n "$moltenvk" ] && [ -f "$moltenvk" ]
+then
+    cp -L "$moltenvk" "$contents/Frameworks/libMoltenVK.dylib"
+    chmod u+w "$contents/Frameworks/libMoltenVK.dylib"
+    install_name_tool -id "@executable_path/../Frameworks/libMoltenVK.dylib" "$contents/Frameworks/libMoltenVK.dylib"
+else
+    echo "warning: MoltenVK not found (brew install molten-vk), paraLLEl-RDP won't work"
+fi
+
 # fail when anything still links against Homebrew, or references
 # a library that doesn't exist in the bundle, such a bundle only
 # works on the build machine (or not at all)
@@ -183,7 +200,7 @@ then
     exit 1
 fi
 
-# 5. Info.plist and icon
+# 6. Info.plist and icon
 sed -e "s/@RMG_VERSION@/$short_version/g" \
     -e "s/@RMG_MIN_MACOS@/$min_macos/g" \
     "$script_dir/Info.plist.in" > "$contents/Info.plist"
@@ -203,7 +220,7 @@ else
     echo "warning: rsvg-convert not found, RMG.app will have no icon"
 fi
 
-# 6. code signing, inside-out
+# 7. code signing, inside-out
 echo "==> Signing with identity: $identity"
 sign_args=(--force --sign "$identity")
 if [ "$identity" != "-" ]
@@ -232,7 +249,7 @@ done < <(find "$contents/Frameworks" -maxdepth 1 -name "*.framework" -print0)
 codesign "${sign_args[@]}" --entitlements "$script_dir/RMG.entitlements" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 
-# 7. optional .dmg
+# 8. optional .dmg
 if [ "${CREATE_DMG:-0}" = "1" ]
 then
     dmg="$out_dir/RMG-macOS-$version.dmg"

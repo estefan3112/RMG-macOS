@@ -421,21 +421,46 @@ static m64p_error VidExt_VK_GetSurface(void** Surface, void* Instance)
         return M64ERR_UNSUPPORTED;
     }
 
-    // use VkInstance from plugin
-    // when we don't have a VkInstance yet
-    if (l_VulkanInstance.vkInstance() == VK_NULL_HANDLE)
+    bool instanceCreated = true;
+    VkSurfaceKHR vulkanSurface = VK_NULL_HANDLE;
+    auto getSurface = [&]()
     {
-        l_VulkanInstance.setVkInstance((VkInstance)Instance);
-        if (!l_VulkanInstance.create())
+        // use VkInstance from plugin
+        // when we don't have a VkInstance yet
+        if (l_VulkanInstance.vkInstance() == VK_NULL_HANDLE)
         {
-            CoreAddCallbackMessage(CoreDebugMessageType::Error, "Failed to create vulkan instance");
-            return M64ERR_SYSTEM_FAIL;
+            l_VulkanInstance.setVkInstance((VkInstance)Instance);
+            if (!l_VulkanInstance.create())
+            {
+                instanceCreated = false;
+                return;
+            }
+            (*l_VulkanWidget)->setVulkanInstance(&l_VulkanInstance);
         }
-        (*l_VulkanWidget)->setVulkanInstance(&l_VulkanInstance);
+
+        // attempt to retrieve vulkan surface for window
+        vulkanSurface = QVulkanInstance::surfaceForWindow((*l_VulkanWidget));
+    };
+
+#ifdef __APPLE__
+    // on macOS creating the surface touches the window's
+    // view and layer, which is only allowed on the main thread
+    if (QThread::currentThread() != (*l_VulkanWidget)->thread())
+    {
+        QMetaObject::invokeMethod((*l_VulkanWidget), getSurface, Qt::BlockingQueuedConnection);
+    }
+    else
+#endif // __APPLE__
+    {
+        getSurface();
     }
 
-    // attempt to retrieve vulkan surface for window
-    VkSurfaceKHR vulkanSurface = QVulkanInstance::surfaceForWindow((*l_VulkanWidget));
+    if (!instanceCreated)
+    {
+        CoreAddCallbackMessage(CoreDebugMessageType::Error, "Failed to create vulkan instance");
+        return M64ERR_SYSTEM_FAIL;
+    }
+
     if (vulkanSurface == VK_NULL_HANDLE)
     {
         CoreAddCallbackMessage(CoreDebugMessageType::Error, "Failed to retrieve vulkan surface for window");
@@ -459,8 +484,13 @@ static m64p_error VidExt_VK_GetInstanceExtensions(const char** Extensions[], uin
     // only add surface extensions
     for (int i = 0; i < l_VulkanExtensions.size(); i++)
     {
-        if (l_VulkanExtensions[i].name.startsWith("VK_KHR_") &&
-            l_VulkanExtensions[i].name.endsWith("surface"))
+        if ((l_VulkanExtensions[i].name.startsWith("VK_KHR_") &&
+             l_VulkanExtensions[i].name.endsWith("surface"))
+#ifdef __APPLE__
+            // Qt creates surfaces on macOS with VK_EXT_metal_surface
+            || l_VulkanExtensions[i].name == "VK_EXT_metal_surface"
+#endif // __APPLE__
+           )
         {
             l_VulkanExtensionList.append(l_VulkanExtensions[i].name.data());
         }

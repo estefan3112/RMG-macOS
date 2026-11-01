@@ -24,6 +24,11 @@
 #else
 #include <signal.h>
 #endif
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <filesystem>
+#include <climits>
+#endif
 
 #include <RMG-Core/Directories.hpp>
 #include <RMG-Core/Version.hpp>
@@ -142,6 +147,40 @@ int main(int argc, char **argv)
     signal(SIGTERM, signal_handler);
 
 #ifdef __APPLE__
+    // Vulkan on macOS is provided by MoltenVK, Qt (for the window surface)
+    // and the paraLLEl-RDP plugin share one VkInstance, so they have to use
+    // the same library, load MoltenVK directly (no Vulkan loader needed),
+    // preferring the copy in RMG.app/Contents/Frameworks, and only when
+    // the user hasn't chosen a library already
+    {
+        char exePathBuffer[PATH_MAX] = {0};
+        uint32_t exePathBufferSize = sizeof(exePathBuffer);
+        std::error_code errorCode;
+        std::filesystem::path exeDirectory;
+        if (_NSGetExecutablePath(exePathBuffer, &exePathBufferSize) == 0)
+        {
+            exeDirectory = std::filesystem::canonical(exePathBuffer, errorCode).parent_path();
+        }
+
+        const std::filesystem::path moltenVKPaths[] =
+        {
+            exeDirectory / "../Frameworks/libMoltenVK.dylib",
+            "/opt/homebrew/lib/libMoltenVK.dylib",
+            "/usr/local/lib/libMoltenVK.dylib",
+        };
+
+        for (const std::filesystem::path& moltenVKPath : moltenVKPaths)
+        {
+            if (!exeDirectory.empty() && std::filesystem::is_regular_file(moltenVKPath, errorCode))
+            {
+                std::string path = std::filesystem::canonical(moltenVKPath, errorCode).string();
+                setenv("QT_VULKAN_LIB", path.c_str(), 0);
+                setenv("GRANITE_VULKAN_LIBRARY", path.c_str(), 0);
+                break;
+            }
+        }
+    }
+
     // on macOS, an OpenGL context can only be shared
     // with contexts of the same profile, and anything
     // newer than OpenGL 2.1 requires a core profile,

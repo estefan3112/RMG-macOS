@@ -202,8 +202,6 @@ ExternalProject_Add(mupen64plus-video-GLideN64
     BUILD_BYPRODUCTS ${GLIDEN64_BUILD_DIR}/plugin/${GLIDEN64_BUILD_TYPE}/mupen64plus-video-GLideN64.${SO_EXT}
 )
 
-# not yet ported to macOS: paraLLEl-RDP (needs MoltenVK) and softrdp
-if (NOT APPLE)
 ExternalProject_Add(mupen64plus-video-parallel
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-video-parallel
 
@@ -217,6 +215,8 @@ ExternalProject_Add(mupen64plus-video-parallel
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-video-parallel/mupen64plus-video-parallel.${SO_EXT}
 )
 
+# not yet ported to macOS: softrdp
+if (NOT APPLE)
 set(SOFTRDP_MAKE_OPTFLAGS "-fPIC ${MAKE_OPTFLAGS}")
 ExternalProject_Add(mupen64plus-video-softrdp
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-video-softrdp/
@@ -295,10 +295,10 @@ ExternalProject_Get_property(mupen64plus-video-GLideN64 BUILD_BYPRODUCTS)
 set(MUPEN64PLUS_PLUGIN_GFX_GLIDEN64 ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 set(MUPEN64PLUS_PLUGIN_GFX_GLIDEN64_DATA ${GLIDEN64_CUSTOM_INI} PARENT_SCOPE)
 
-if (NOT APPLE)
-    ExternalProject_Get_property(mupen64plus-video-parallel BUILD_BYPRODUCTS)
-    set(MUPEN64PLUS_PLUGIN_GFX_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+ExternalProject_Get_property(mupen64plus-video-parallel BUILD_BYPRODUCTS)
+set(MUPEN64PLUS_PLUGIN_GFX_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
+if (NOT APPLE)
     ExternalProject_Get_property(mupen64plus-video-softrdp BUILD_BYPRODUCTS)
     set(MUPEN64PLUS_PLUGIN_GFX_SOFTRDP ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 endif(NOT APPLE)
