@@ -8,6 +8,17 @@
 #include <limits>
 #include <algorithm>
 
+#if defined(__APPLE__) && defined(__aarch64__)
+// Apple Silicon: executable memory for a JIT must be a MAP_JIT mapping,
+// it can't be made executable with mprotect(). A MAP_JIT mapping is
+// either writable or executable for the calling thread, toggled with
+// pthread_jit_write_protect_np(), and the instruction cache has to be
+// invalidated after writing code.
+#define RSP_APPLE_JIT 1
+#include <pthread.h>
+#include <libkern/OSCacheControl.h>
+#endif
+
 #include "jit_allocator.hpp"
 
 namespace RSP
@@ -46,7 +57,12 @@ static size_t align_page(size_t offset)
 
 static bool commit_read_write(void *ptr, size_t size)
 {
-#ifdef _WIN32
+#if defined(RSP_APPLE_JIT)
+	(void)ptr;
+	(void)size;
+	pthread_jit_write_protect_np(0);
+	return true;
+#elif defined(_WIN32)
 	return VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) == ptr;
 #else
 	return mprotect(ptr, size, PROT_READ | PROT_WRITE) == 0;
@@ -55,7 +71,11 @@ static bool commit_read_write(void *ptr, size_t size)
 
 static bool commit_execute(void *ptr, size_t size)
 {
-#ifdef _WIN32
+#if defined(RSP_APPLE_JIT)
+	pthread_jit_write_protect_np(1);
+	sys_icache_invalidate(ptr, size);
+	return true;
+#elif defined(_WIN32)
 	DWORD old_protect;
 	return VirtualProtect(ptr, align_page(size), PAGE_EXECUTE, &old_protect) != 0;
 #else
@@ -109,8 +129,14 @@ Allocator::Block Allocator::reserve_block(size_t size)
 	block.size = size;
 	return block;
 #else
-	block.code = static_cast<uint8_t *>(mmap(nullptr, size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE,
-	                                         -1, 0));
+#if defined(RSP_APPLE_JIT)
+	void *code = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC,
+	                  MAP_ANONYMOUS | MAP_PRIVATE | MAP_JIT, -1, 0);
+#else
+	void *code = mmap(nullptr, size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE,
+	                  -1, 0);
+#endif
+	block.code = code == MAP_FAILED ? nullptr : static_cast<uint8_t *>(code);
 	block.size = size;
 	return block;
 #endif

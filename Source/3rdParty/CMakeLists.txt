@@ -126,9 +126,6 @@ ExternalProject_Add(mupen64plus-rsp-hle
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-rsp-hle/mupen64plus-rsp-hle.${SO_EXT}
 )
 
-# not yet ported to macOS: paraLLEl-RSP (lightning JIT needs MAP_JIT)
-# and raphnetraw (hidapi)
-if (NOT APPLE)
 ExternalProject_Add(mupen64plus-rsp-parallel
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-rsp-parallel/
 
@@ -142,6 +139,8 @@ ExternalProject_Add(mupen64plus-rsp-parallel
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/mupen64plus-rsp-parallel/mupen64plus-rsp-parallel.${SO_EXT}
 )
 
+# not yet ported to macOS: raphnetraw (hidapi)
+if (NOT APPLE)
 ExternalProject_Add(mupen64plus-input-raphnetraw
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mupen64plus-input-raphnetraw/
 
@@ -279,10 +278,10 @@ set(MUPEN64PLUS_PLUGIN_RSP_CXD4 ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 ExternalProject_Get_property(mupen64plus-rsp-hle BUILD_BYPRODUCTS)
 set(MUPEN64PLUS_PLUGIN_RSP_HLE ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
-if (NOT APPLE)
-    ExternalProject_Get_property(mupen64plus-rsp-parallel BUILD_BYPRODUCTS)
-    set(MUPEN64PLUS_PLUGIN_RSP_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
+ExternalProject_Get_property(mupen64plus-rsp-parallel BUILD_BYPRODUCTS)
+set(MUPEN64PLUS_PLUGIN_RSP_PARALLEL ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 
+if (NOT APPLE)
     ExternalProject_Get_property(mupen64plus-input-raphnetraw BUILD_BYPRODUCTS)
     set(MUPEN64PLUS_PLUGIN_INPUT_RAPHNET ${BUILD_BYPRODUCTS} PARENT_SCOPE)
 endif(NOT APPLE)
