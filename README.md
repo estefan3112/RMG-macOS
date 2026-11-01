@@ -1,3 +1,53 @@
+# RMG for macOS (Apple Silicon)
+
+> **This is an unofficial fork of [Rosalie's Mupen GUI](https://github.com/Rosalie241/RMG) with a native macOS port for Apple Silicon Macs.**
+> The macOS work lives in the [`macos`](https://github.com/estefan3112/RMG-macOS/tree/macos) branch; `master` mirrors upstream.
+> Please report macOS issues here, not to the upstream RMG project.
+
+### What works
+
+- Native arm64 build as a regular `RMG.app` (Qt 6, SDL3), started from Finder or Terminal
+- **mupen64plus dynamic recompiler on Apple Silicon**, including a fix for the arm64 dynarec that is also submitted upstream as [mupen64plus/mupen64plus-core#1198](https://github.com/mupen64plus/mupen64plus-core/pull/1198)
+- **GLideN64** (OpenGL 4.1) with resizing, fullscreen, VSync, FXAA, anisotropic filtering and hires textures
+- **paraLLEl-RSP** with its JIT (MAP_JIT), both as RSP plugin and as automatic fallback for the HLE RSP plugin (e.g. Conker's Bad Fur Day)
+- RSP HLE and CXD4, RMG's audio and input plugins, GameCube adapter input
+- macOS Game Mode in fullscreen
+
+Tested on a Mac mini M2 Pro with macOS 26 with Super Mario 64, Conker's Bad Fur Day, Banjo-Tooie, Star Wars: Rogue Squadron, Gauntlet Legends, Yoshi's Story and Wipeout 64.
+
+### Not (yet) available on macOS
+
+- paraLLEl-RDP (Vulkan, needs MoltenVK) and softrdp
+- MSAA in GLideN64 (use FXAA instead); threaded video and async shader compilation
+- raphnetraw input, netplay, voice recognition (VRU)
+
+### Building
+
+Requirements: Xcode Command Line Tools and [Homebrew](https://brew.sh).
+
+```bash
+brew install cmake ninja pkgconf qt sdl3 libusb libsamplerate speexdsp minizip freetype libpng librsvg
+export CMAKE_PREFIX_PATH="$(brew --prefix qt)"
+
+cmake -S . -B Build/Release -G Ninja -DCMAKE_BUILD_TYPE=Release -DPORTABLE_INSTALL=ON -DUSE_CCACHE=OFF
+cmake --build Build/Release --parallel "$(sysctl -n hw.ncpu)"
+cmake --install Build/Release --strip --prefix "$PWD"
+MACDEPLOYQT="$(brew --prefix qt)/bin/macdeployqt" bash Package/macOS/Create.sh Bin/Release Build/macOS
+```
+
+The app bundle is created in `Build/macOS/RMG.app`. Settings and saves are stored in `~/Library/Application Support/RMG`.
+
+### Tips
+
+- **Window size on Retina/HiDPI displays:** GLideN64's windowed resolution is in pixels, so enter double the window size you want (e.g. `2560 x 1920` for a 1280 x 960 window) and save it to the *User* profile.
+- **CPU emulator:** choose *Dynamic Recompiler* in Settings → Core for full speed.
+
+### Credits
+
+All credit for RMG goes to [Rosalie](https://github.com/Rosalie241) and the RMG contributors, and to the mupen64plus, GLideN64 and paraLLEl teams. The macOS port was written with AI assistance (Claude Opus 5.5, Anthropic) and built and tested by [estefan3112](https://github.com/estefan3112). More about N64 and arcade emulation on the Mac: [mameonmacs.blogspot.com](https://mameonmacs.blogspot.com)
+
+---
+
 # Rosalie's Mupen GUI
 
 Rosalie's Mupen GUI is a free and open-source mupen64plus front-end written in C++.
