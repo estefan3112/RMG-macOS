@@ -13,7 +13,7 @@
 - RSP HLE and CXD4, RMG's audio and input plugins, GameCube adapter input
 - macOS Game Mode in fullscreen
 
-Tested on a Mac mini M2 Pro with macOS 26 with Super Mario 64, Conker's Bad Fur Day, Banjo-Tooie, Star Wars: Rogue Squadron, Gauntlet Legends, Yoshi's Story and Wipeout 64.
+Tested on a Mac mini M2 Pro with macOS 26 with a longer list of games, including Super Mario 64, Legend Of Zelda - Oracina of Time and Majora's Mask, Star Wars: Rogue Squadron, Gauntlet Legends, and Wipeout 64.
 
 ### Not (yet) available on macOS
 
