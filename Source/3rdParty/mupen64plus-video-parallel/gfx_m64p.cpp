@@ -326,8 +326,10 @@ EXPORT int CALL RomOpen(void)
     const char *shader_preset = ConfigGetParamString(configVideoParallel, KEY_SHADERPRESET);
     snprintf(vk_shader_preset, sizeof(vk_shader_preset), "%s", shader_preset ? shader_preset : "");
 
+    // M64ERR_NOT_INIT: netplay isn't running, M64ERR_INCOMPATIBLE: the core
+    // was built without netplay support, neither means netplay is active
     m64p_error netplay_init = ConfigReceiveNetplayConfig(NULL, 0);
-    if (netplay_init != M64ERR_NOT_INIT)
+    if (netplay_init != M64ERR_NOT_INIT && netplay_init != M64ERR_INCOMPATIBLE)
     {
         DebugMessage(M64MSG_INFO, "Netplay enabled, disabling vsync");
         window_vsync   = 0; // force disable vsync during netplay
