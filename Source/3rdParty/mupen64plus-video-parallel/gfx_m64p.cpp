@@ -318,8 +318,10 @@ EXPORT int CALL RomOpen(void)
     vk_overscan_enable = ConfigGetParamBool(configVideoParallel, KEY_OVERSCANCROPENABLE);
     vk_vertical_stretch = ConfigGetParamInt(configVideoParallel, KEY_VERTICAL_STRETCH);
 
+    // M64ERR_NOT_INIT: netplay isn't running, M64ERR_INCOMPATIBLE: the core
+    // was built without netplay support, neither means netplay is active
     m64p_error netplay_init = ConfigReceiveNetplayConfig(NULL, 0);
-    if (netplay_init != M64ERR_NOT_INIT)
+    if (netplay_init != M64ERR_NOT_INIT && netplay_init != M64ERR_INCOMPATIBLE)
     {
         DebugMessage(M64MSG_INFO, "Netplay enabled, disabling vsync");
         window_vsync   = 0; // force disable vsync during netplay
