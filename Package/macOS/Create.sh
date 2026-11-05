@@ -174,13 +174,38 @@ then
         [ -f "$candidate" ] && librashader="$candidate" && break
     done
 fi
+if [ -z "$librashader" ] && [ "${LIBRASHADER_DOWNLOAD:-1}" = "1" ]
+then
+    # fetch the prebuilt release once and keep it in a cache folder
+    librashader_version="${LIBRASHADER_VERSION:-0.12.0}"
+    case "$(uname -m)" in
+        arm64) librashader_arch="aarch64" ;;
+        *)     librashader_arch="x86_64" ;;
+    esac
+    librashader_cache="$HOME/Library/Caches/RMG-build/librashader-$librashader_version-$librashader_arch"
+    if [ ! -f "$librashader_cache/librashader.dylib" ]
+    then
+        librashader_zip="librashader-$librashader_arch-macos-v$librashader_version-optimized.zip"
+        echo "==> Downloading librashader $librashader_version"
+        mkdir -p "$librashader_cache"
+        if curl -fsSL -o "$librashader_cache/$librashader_zip" \
+            "https://github.com/SnowflakePowered/librashader/releases/download/librashader-v$librashader_version/$librashader_zip" &&
+           unzip -q -o "$librashader_cache/$librashader_zip" -d "$librashader_cache/zip"
+        then
+            found="$(find "$librashader_cache/zip" -name librashader.dylib | head -n 1)"
+            [ -n "$found" ] && cp "$found" "$librashader_cache/librashader.dylib"
+        fi
+        rm -rf "$librashader_cache/zip" "$librashader_cache/$librashader_zip"
+    fi
+    [ -f "$librashader_cache/librashader.dylib" ] && librashader="$librashader_cache/librashader.dylib"
+fi
 if [ -n "$librashader" ] && [ -f "$librashader" ]
 then
     cp -L "$librashader" "$contents/Frameworks/librashader.dylib"
     chmod u+w "$contents/Frameworks/librashader.dylib"
     install_name_tool -id "@executable_path/../Frameworks/librashader.dylib" "$contents/Frameworks/librashader.dylib"
 else
-    echo "note: librashader not found (set LIBRASHADER_LIB), shader presets won't be available"
+    echo "note: librashader not found or downloaded (set LIBRASHADER_LIB), shader presets won't be available"
 fi
 
 # fail when anything still links against Homebrew, or references
