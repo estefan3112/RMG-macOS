@@ -74,6 +74,7 @@ set(PARALLEL_SOURCES
     screen.c
     gfx_m64p.cpp
     parallel_imp.cpp
+    librashader_filter.cpp
     wsi_platform.cpp
 )
 
@@ -99,6 +100,11 @@ target_include_directories(${NAME_PLUGIN_M64P} PUBLIC
 if(WIN32)
     target_link_libraries(${NAME_PLUGIN_M64P} -lwinmm)
 endif(WIN32)
+
+# librashader is loaded with dlopen()
+if(UNIX)
+    target_link_libraries(${NAME_PLUGIN_M64P} ${CMAKE_DL_LIBS})
+endif(UNIX)
 
 if (CONFIG_GUI)
     target_link_libraries(${NAME_PLUGIN_M64P} Qt6::Gui Qt6::Widgets)

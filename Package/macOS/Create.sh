@@ -164,6 +164,25 @@ else
     echo "warning: MoltenVK not found (brew install molten-vk), paraLLEl-RDP won't work"
 fi
 
+# 6. librashader (optional) runs slang shader presets on the paraLLEl-RDP
+#    output, the plugin loads it from Contents/Frameworks at runtime
+librashader="${LIBRASHADER_LIB:-}"
+if [ -z "$librashader" ]
+then
+    for candidate in /opt/homebrew/lib/librashader.dylib /usr/local/lib/librashader.dylib
+    do
+        [ -f "$candidate" ] && librashader="$candidate" && break
+    done
+fi
+if [ -n "$librashader" ] && [ -f "$librashader" ]
+then
+    cp -L "$librashader" "$contents/Frameworks/librashader.dylib"
+    chmod u+w "$contents/Frameworks/librashader.dylib"
+    install_name_tool -id "@executable_path/../Frameworks/librashader.dylib" "$contents/Frameworks/librashader.dylib"
+else
+    echo "note: librashader not found (set LIBRASHADER_LIB), shader presets won't be available"
+fi
+
 # fail when anything still links against Homebrew, or references
 # a library that doesn't exist in the bundle, such a bundle only
 # works on the build machine (or not at all)
@@ -200,7 +219,7 @@ then
     exit 1
 fi
 
-# 6. Info.plist and icon
+# 7. Info.plist and icon
 sed -e "s/@RMG_VERSION@/$short_version/g" \
     -e "s/@RMG_MIN_MACOS@/$min_macos/g" \
     "$script_dir/Info.plist.in" > "$contents/Info.plist"
@@ -220,7 +239,7 @@ else
     echo "warning: rsvg-convert not found, RMG.app will have no icon"
 fi
 
-# 7. code signing, inside-out
+# 8. code signing, inside-out
 echo "==> Signing with identity: $identity"
 sign_args=(--force --sign "$identity")
 if [ "$identity" != "-" ]
@@ -249,7 +268,7 @@ done < <(find "$contents/Frameworks" -maxdepth 1 -name "*.framework" -print0)
 codesign "${sign_args[@]}" --entitlements "$script_dir/RMG.entitlements" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 
-# 8. optional .dmg
+# 9. optional .dmg
 if [ "${CREATE_DMG:-0}" = "1" ]
 then
     dmg="$out_dir/RMG-macOS-$version.dmg"

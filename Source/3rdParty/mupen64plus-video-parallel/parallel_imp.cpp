@@ -7,6 +7,7 @@
 #include "rdp_device.hpp"
 #include "wsi.hpp"
 #include "wsi_platform.hpp"
+#include "librashader_filter.hpp"
 
 static int cmd_cur;
 static int cmd_ptr;
@@ -31,6 +32,7 @@ bool vk_native_tex_rect;
 bool vk_divot_filter, vk_gamma_dither;
 bool vk_vi_aa, vk_vi_scale, vk_dither_filter;
 bool vk_interlacing;
+char vk_shader_preset[4096];
 
 static const unsigned cmd_len_lut[64] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 4, 6, 12, 14, 12, 14, 20, 22,
@@ -196,6 +198,14 @@ static void render_frame(Vulkan::Device &device)
 	}
 	Vulkan::ImageHandle image = processor->scanout(opts);
 
+	// the letterboxed area of the window the image ends up in
+	float vp_x, vp_y, vp_width, vp_height;
+	calculate_viewport(&vp_x, &vp_y, &vp_width, &vp_height);
+
+	// optional slang shader preset, renders at the final output size
+	if (image && ShaderFilter::active())
+		image = ShaderFilter::apply(device, image, unsigned(vp_width), unsigned(vp_height));
+
 	// Normally reflection is automated.
 	Vulkan::ResourceLayout vertex_layout = {};
 	Vulkan::ResourceLayout fragment_layout = {};
@@ -216,7 +226,10 @@ static void render_frame(Vulkan::Device &device)
 		if (image.get() != NULL)
 		{
 			VkViewport vp = cmd->get_viewport();
-			calculate_viewport(&vp.x, &vp.y, &vp.width, &vp.height);
+			vp.x = vp_x;
+			vp.y = vp_y;
+			vp.width = vp_width;
+			vp.height = vp_height;
 
 			cmd->set_program(program);
 
@@ -471,7 +484,10 @@ void vk_resize()
 void vk_destroy()
 {
 	if (wsi)
+	{
 		wsi->end_frame();
+		ShaderFilter::destroy(wsi->get_device());
+	}
 
 	processor.reset();
 	wsi.reset();
@@ -558,6 +574,9 @@ bool vk_init()
 	quirks.set_native_texture_lod(vk_native_texture_lod);
 	quirks.set_native_resolution_tex_rect(vk_native_tex_rect);
 	processor->set_quirks(quirks);
+
+	// a missing library or a broken preset only disables the shader
+	ShaderFilter::init(wsi->get_device(), vk_shader_preset);
 
 	wsi->begin_frame();
 	return true;

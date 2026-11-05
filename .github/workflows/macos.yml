@@ -75,6 +75,20 @@ jobs:
           fi
           echo "CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
 
+      - name: Download librashader
+        env:
+          LIBRASHADER_VERSION: 0.12.0
+        run: |
+          # prebuilt library for slang shader presets in paraLLEl-RDP
+          zip="librashader-aarch64-macos-v${LIBRASHADER_VERSION}-optimized.zip"
+          curl -fsSL -o "$RUNNER_TEMP/$zip" \
+            "https://github.com/SnowflakePowered/librashader/releases/download/librashader-v${LIBRASHADER_VERSION}/$zip"
+          mkdir -p "$RUNNER_TEMP/librashader"
+          unzip -q "$RUNNER_TEMP/$zip" -d "$RUNNER_TEMP/librashader"
+          lib="$(find "$RUNNER_TEMP/librashader" -name librashader.dylib | head -n 1)"
+          test -n "$lib"
+          echo "LIBRASHADER_LIB=$lib" >> "$GITHUB_ENV"
+
       - name: Create app bundle
         run: CREATE_DMG=1 bash ./Package/macOS/Create.sh Bin/Release Build/macOS
 
