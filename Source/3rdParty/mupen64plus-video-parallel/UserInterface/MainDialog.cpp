@@ -13,6 +13,25 @@
 #include "../gfx_m64p.h"
 
 #include <QRegularExpression>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QDir>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFormLayout>
+
+// bundled presets, relative to the Shaders folder in RMG's data directory
+static const struct
+{
+    const char* name;
+    const char* preset;
+} l_BundledShaderPresets[] =
+{
+    { "crt-easymode",  "crt/crt-easymode.slangp" },
+    { "crt-cgwg-fast", "crt/crt-cgwg-fast.slangp" },
+    { "koko-aio",      "bezel/koko-aio/koko-aio-ng.slangp" },
+};
 
 using namespace UserInterface;
 
@@ -83,6 +102,123 @@ MainDialog::MainDialog(QWidget* parent) : QDialog(parent)
     this->viGammaDitherCheckBox->setChecked(ConfigGetParamBool(configVideoParallel, KEY_GAMMADITHER));
     this->nativeTextRectsCheckBox->setChecked(ConfigGetParamBool(configVideoParallel, KEY_NATIVETEXTRECT));
     this->verticalSyncCheckBox->setChecked(ConfigGetParamBool(configVideoParallel, KEY_VSYNC));
+
+    this->setupShaderTab();
+    const char* shaderPreset = ConfigGetParamString(configVideoParallel, KEY_SHADERPRESET);
+    this->setShaderPreset(shaderPreset != nullptr ? QString::fromUtf8(shaderPreset) : QString());
+    this->shaderFullWindowCheckBox->setChecked(ConfigGetParamBool(configVideoParallel, KEY_SHADERFULLWINDOW));
+}
+
+void MainDialog::setupShaderTab(void)
+{
+    QWidget* tab = new QWidget(this);
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    QFormLayout* formLayout = new QFormLayout();
+
+    this->shaderPresetComboBox = new QComboBox(tab);
+    this->shaderPresetComboBox->addItem("Off", QString());
+    for (const auto& bundledPreset : l_BundledShaderPresets)
+    {
+        this->shaderPresetComboBox->addItem(bundledPreset.name, QString(bundledPreset.preset));
+    }
+    this->shaderPresetComboBox->addItem("Custom...", QString("custom"));
+    formLayout->addRow("Shader preset:", this->shaderPresetComboBox);
+
+    QHBoxLayout* customLayout = new QHBoxLayout();
+    this->shaderCustomLineEdit = new QLineEdit(tab);
+    this->shaderCustomLineEdit->setPlaceholderText("Path to a .slangp preset");
+    this->shaderBrowseButton = new QPushButton("Browse...", tab);
+    customLayout->addWidget(this->shaderCustomLineEdit);
+    customLayout->addWidget(this->shaderBrowseButton);
+    formLayout->addRow("Custom preset:", customLayout);
+    layout->addLayout(formLayout);
+
+    this->shaderFullWindowCheckBox = new QCheckBox("Use the whole window (for bezels and backgrounds, e.g. koko-aio)", tab);
+    layout->addWidget(this->shaderFullWindowCheckBox);
+
+    QLabel* hintLabel = new QLabel(tab);
+    hintLabel->setWordWrap(true);
+    hintLabel->setText("Shader presets are RetroArch slang shaders (.slangp), "
+                       "applied to the final image. CRT shaders expect the game's native "
+                       "resolution: when upscaling, set the downscaler so it cancels the "
+                       "upscaling out (e.g. 4x upscaling with 1/4 downscaling).\n\n"
+                       "With Custom, any preset of the full slang-shaders collection can be "
+                       "used, including the koko-aio variants in the bundled "
+                       "bezel/koko-aio folder. Shaders need librashader.\n\n"
+                       "Use the whole window only with shaders that keep the aspect ratio "
+                       "themselves (like koko-aio with bezels), others get stretched.");
+    layout->addWidget(hintLabel);
+    layout->addStretch();
+
+    this->tabWidget->addTab(tab, "Shader");
+
+    connect(this->shaderPresetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainDialog::shaderPresetChanged);
+    connect(this->shaderBrowseButton, &QPushButton::clicked,
+            this, &MainDialog::browseShaderPreset);
+}
+
+void MainDialog::setShaderPreset(const QString& preset)
+{
+    int index = 0;
+    if (!preset.isEmpty())
+    {
+        index = this->shaderPresetComboBox->findData(preset);
+        if (index == -1)
+        { // not a bundled preset
+            index = this->shaderPresetComboBox->count() - 1;
+            this->shaderCustomLineEdit->setText(preset);
+        }
+    }
+    this->shaderPresetComboBox->setCurrentIndex(index);
+    this->shaderPresetChanged(index);
+}
+
+QString MainDialog::getShaderPreset(void)
+{
+    int index = this->shaderPresetComboBox->currentIndex();
+    if (index == this->shaderPresetComboBox->count() - 1)
+    {
+        return this->shaderCustomLineEdit->text().trimmed();
+    }
+    return this->shaderPresetComboBox->itemData(index).toString();
+}
+
+QString MainDialog::getBundledShaderDirectory(void)
+{
+    if (ConfigGetSharedDataFilepath != nullptr)
+    {
+        const char* readme = ConfigGetSharedDataFilepath("Shaders/README.md");
+        if (readme != nullptr)
+        {
+            return QFileInfo(QString::fromUtf8(readme)).absolutePath();
+        }
+    }
+    return QDir::homePath();
+}
+
+void MainDialog::shaderPresetChanged(int index)
+{
+    bool custom = index == this->shaderPresetComboBox->count() - 1;
+    this->shaderCustomLineEdit->setEnabled(custom);
+    this->shaderBrowseButton->setEnabled(custom);
+}
+
+void MainDialog::browseShaderPreset(void)
+{
+    QString startDirectory = this->getBundledShaderDirectory();
+    QString currentPreset = this->shaderCustomLineEdit->text().trimmed();
+    if (!currentPreset.isEmpty() && QFileInfo(currentPreset).isAbsolute())
+    {
+        startDirectory = QFileInfo(currentPreset).absolutePath();
+    }
+
+    QString preset = QFileDialog::getOpenFileName(this, "Choose shader preset", startDirectory,
+                                                  "Shader presets (*.slangp)");
+    if (!preset.isEmpty())
+    {
+        this->shaderCustomLineEdit->setText(preset);
+    }
 }
 
 MainDialog::~MainDialog()
@@ -165,6 +301,12 @@ void MainDialog::on_buttonBox_clicked(QAbstractButton* button)
         ConfigSetParameter(configVideoParallel, KEY_NATIVETEXTRECT, M64TYPE_BOOL, &nativeTextRectsValue);
         ConfigSetParameter(configVideoParallel, KEY_VSYNC, M64TYPE_BOOL, &verticalSyncValue);
 
+        // shader preset
+        QByteArray shaderPreset = this->getShaderPreset().toUtf8();
+        ConfigSetParameter(configVideoParallel, KEY_SHADERPRESET, M64TYPE_STRING, shaderPreset.constData());
+        int shaderFullWindowValue = this->shaderFullWindowCheckBox->isChecked() ? 1 : 0;
+        ConfigSetParameter(configVideoParallel, KEY_SHADERFULLWINDOW, M64TYPE_BOOL, &shaderFullWindowValue);
+
         ConfigSaveSection("Video-Parallel");
     }
     else if (pushButton == defaultButton)
@@ -191,5 +333,7 @@ void MainDialog::on_buttonBox_clicked(QAbstractButton* button)
         this->viGammaDitherCheckBox->setChecked(true);
         this->nativeTextRectsCheckBox->setChecked(true);
         this->verticalSyncCheckBox->setChecked(false);
+        this->setShaderPreset(QString());
+        this->shaderFullWindowCheckBox->setChecked(false);
     }
 }

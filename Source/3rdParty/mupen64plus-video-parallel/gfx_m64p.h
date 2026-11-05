@@ -27,6 +27,8 @@ extern ptr_ConfigSetDefaultBool ConfigSetDefaultBool;
 extern ptr_ConfigGetParamInt ConfigGetParamInt;
 extern ptr_ConfigGetParamBool ConfigGetParamBool;
 extern ptr_ConfigSetParameter ConfigSetParameter;
+extern ptr_ConfigGetParamString ConfigGetParamString;
+extern ptr_ConfigGetSharedDataFilepath ConfigGetSharedDataFilepath;
 
 
 #define KEY_SCREEN_WIDTH "ScreenWidth"
@@ -53,3 +55,4 @@ extern ptr_ConfigSetParameter ConfigSetParameter;
 #define KEY_SYNCHRONOUS "SynchronousRDP"
 #define KEY_VSYNC "VSync"
 #define KEY_SHADERPRESET "ShaderPreset"
+#define KEY_SHADERFULLWINDOW "ShaderFullWindow"

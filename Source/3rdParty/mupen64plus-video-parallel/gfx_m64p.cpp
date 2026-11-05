@@ -52,6 +52,7 @@ ptr_ConfigGetParamInt ConfigGetParamInt = NULL;
 ptr_ConfigGetParamBool ConfigGetParamBool = NULL;
 ptr_ConfigSetDefaultString ConfigSetDefaultString = NULL;
 ptr_ConfigGetParamString ConfigGetParamString = NULL;
+ptr_ConfigGetSharedDataFilepath ConfigGetSharedDataFilepath = NULL;
 ptr_ConfigSetParameter ConfigSetParameter = NULL;
 ptr_ConfigReceiveNetplayConfig ConfigReceiveNetplayConfig = NULL;
 
@@ -174,6 +175,7 @@ EXPORT m64p_error CALL PluginStartup(m64p_dynlib_handle _CoreLibHandle, void *Co
     ConfigGetParamBool = (ptr_ConfigGetParamBool)DLSYM(CoreLibHandle, "ConfigGetParamBool");
     ConfigSetDefaultString = (ptr_ConfigSetDefaultString)DLSYM(CoreLibHandle, "ConfigSetDefaultString");
     ConfigGetParamString = (ptr_ConfigGetParamString)DLSYM(CoreLibHandle, "ConfigGetParamString");
+    ConfigGetSharedDataFilepath = (ptr_ConfigGetSharedDataFilepath)DLSYM(CoreLibHandle, "ConfigGetSharedDataFilepath");
     ConfigSetParameter = (ptr_ConfigSetParameter)DLSYM(CoreLibHandle, "ConfigSetParameter");
     ConfigReceiveNetplayConfig = (ptr_ConfigReceiveNetplayConfig)DLSYM(CoreLibHandle, "ConfigReceiveNetplayConfig");
 
@@ -199,7 +201,8 @@ EXPORT m64p_error CALL PluginStartup(m64p_dynlib_handle _CoreLibHandle, void *Co
     ConfigSetDefaultBool(configVideoParallel, KEY_VIDITHER, 1, "Allow VI dedither filter");
     ConfigSetDefaultInt(configVideoParallel, KEY_DOWNSCALE, 0, "Downsampling factor, downscales output after VI, equivalent to SSAA. 0=disabled, 1=1/2, 2=1/4, 3=1/8");
     ConfigSetDefaultBool(configVideoParallel, KEY_NATIVETEXTLOD, 0, "Use native texture LOD computation when upscaling, effectively a LOD bias");
-    ConfigSetDefaultString(configVideoParallel, KEY_SHADERPRESET, "", "Path to a RetroArch slang shader preset (.slangp) applied to the output, empty disables shaders. Needs librashader.");
+    ConfigSetDefaultString(configVideoParallel, KEY_SHADERPRESET, "", "RetroArch slang shader preset (.slangp) applied to the output, either an absolute path or a path relative to the bundled Shaders folder, empty disables shaders. Needs librashader.");
+    ConfigSetDefaultBool(configVideoParallel, KEY_SHADERFULLWINDOW, 0, "Give the shader preset the whole window instead of the 4:3 area, for shaders that draw bezels and backgrounds themselves (like koko-aio).");
     ConfigSetDefaultBool(configVideoParallel, KEY_NATIVETEXTRECT, 1, "Native resolution TEX_RECT. TEX_RECT primitives should generally be rendered at native resolution to avoid seams");
     ConfigSaveSection("Video-Parallel");
 
@@ -324,7 +327,21 @@ EXPORT int CALL RomOpen(void)
     vk_overscan_enable = ConfigGetParamBool(configVideoParallel, KEY_OVERSCANCROPENABLE);
     vk_vertical_stretch = ConfigGetParamInt(configVideoParallel, KEY_VERTICAL_STRETCH);
     const char *shader_preset = ConfigGetParamString(configVideoParallel, KEY_SHADERPRESET);
-    snprintf(vk_shader_preset, sizeof(vk_shader_preset), "%s", shader_preset ? shader_preset : "");
+    if (shader_preset == NULL)
+        shader_preset = "";
+    // relative paths point into the bundled Shaders folder in RMG's data directory
+    bool shader_absolute = shader_preset[0] == '/' || shader_preset[0] == '\\' ||
+                           (isalpha((unsigned char)shader_preset[0]) && shader_preset[1] == ':');
+    if (shader_preset[0] != '\0' && !shader_absolute && ConfigGetSharedDataFilepath != NULL)
+    {
+        char shader_file[4096];
+        snprintf(shader_file, sizeof(shader_file), "Shaders/%s", shader_preset);
+        const char *shared_path = ConfigGetSharedDataFilepath(shader_file);
+        if (shared_path != NULL)
+            shader_preset = shared_path;
+    }
+    snprintf(vk_shader_preset, sizeof(vk_shader_preset), "%s", shader_preset);
+    vk_shader_full_window = ConfigGetParamBool(configVideoParallel, KEY_SHADERFULLWINDOW);
 
     // M64ERR_NOT_INIT: netplay isn't running, M64ERR_INCOMPATIBLE: the core
     // was built without netplay support, neither means netplay is active

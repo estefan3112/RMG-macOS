@@ -33,6 +33,7 @@ bool vk_divot_filter, vk_gamma_dither;
 bool vk_vi_aa, vk_vi_scale, vk_dither_filter;
 bool vk_interlacing;
 char vk_shader_preset[4096];
+bool vk_shader_full_window;
 
 static const unsigned cmd_len_lut[64] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 4, 6, 12, 14, 12, 14, 20, 22,
@@ -204,7 +205,19 @@ static void render_frame(Vulkan::Device &device)
 
 	// optional slang shader preset, renders at the final output size
 	if (image && ShaderFilter::active())
+	{
+		// shaders with bezels and backgrounds (like koko-aio) place the
+		// game image themselves, they get the whole window instead of
+		// the letterboxed area (like RetroArch's "Full" aspect ratio)
+		if (vk_shader_full_window)
+		{
+			vp_x = 0.0f;
+			vp_y = 0.0f;
+			vp_width = float(window_width);
+			vp_height = float(window_height);
+		}
 		image = ShaderFilter::apply(device, image, unsigned(vp_width), unsigned(vp_height));
+	}
 
 	// Normally reflection is automated.
 	Vulkan::ResourceLayout vertex_layout = {};

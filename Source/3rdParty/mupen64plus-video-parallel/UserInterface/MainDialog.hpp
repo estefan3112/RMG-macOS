@@ -12,6 +12,10 @@
 
 #include <QDialog>
 #include <QAbstractButton>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QCheckBox>
 
 #include "ui_MainDialog.h"
 
@@ -24,8 +28,22 @@ public:
     MainDialog(QWidget *parent);
     ~MainDialog(void);
 
+private:
+    // shader tab, created in code
+    QComboBox* shaderPresetComboBox = nullptr;
+    QLineEdit* shaderCustomLineEdit = nullptr;
+    QPushButton* shaderBrowseButton = nullptr;
+    QCheckBox* shaderFullWindowCheckBox = nullptr;
+
+    void setupShaderTab(void);
+    void setShaderPreset(const QString& preset);
+    QString getShaderPreset(void);
+    QString getBundledShaderDirectory(void);
+
 private slots:
     void on_buttonBox_clicked(QAbstractButton* button);
+    void shaderPresetChanged(int index);
+    void browseShaderPreset(void);
 };
 }
 

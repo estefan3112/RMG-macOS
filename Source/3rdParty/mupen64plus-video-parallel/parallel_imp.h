@@ -26,6 +26,7 @@ extern "C"
     extern bool vk_vi_aa, vk_vi_scale, vk_dither_filter;
     extern bool vk_interlacing;
     extern char vk_shader_preset[4096];
+    extern bool vk_shader_full_window;
     extern bool vk_synchronous;
 
     void vk_rasterize();
